@@ -514,7 +514,6 @@
   };
 
   Vec2.magnitude = Vec2.length;
-  Vec2.jsonify = Vec2.toJSON;
 
   Vec2.inject = inject;
 
