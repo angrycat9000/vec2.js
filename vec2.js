@@ -1,7 +1,8 @@
 ;(function inject(clean, precision, undef) {
 
   var isArray = function (a) {
-    return Object.prototype.toString.call(a) === "[object Array]";
+    var type = Object.prototype.toString.call(a);
+    return type === "[object Array]" || type === "[object Float32Array]";
   };
 
   var defined = function(a) {
@@ -58,7 +59,11 @@
 
     // set x and y
     set: function(x, y, notify) {
-      if('number' != typeof x) {
+      if(x.length && 'number' == typeof x[0] && 'number' == typeof x[1]) {
+        notify = y;
+        y = x[1];
+        x = x[0];
+      } else if('number' != typeof x) {
         notify = y;
         y = x.y;
         x = x.x;
@@ -179,14 +184,11 @@
 
     // Rotate this vector. Accepts a `Rotation` or angle in radians.
     //
-    // Passing a truthy `inverse` will cause the rotation to
-    // be reversed.
-    //
     // If `returnNew` is truthy, a new
     // `Vec2` will be created with the values resulting from
     // the rotation. Otherwise the rotation will be applied
     // to this vector directly, and this vector will be returned.
-    rotate : function(r, inverse, returnNew) {
+    rotate : function(r, returnNew) {
       var
       x = this.x,
       y = this.y,
@@ -194,10 +196,8 @@
       sin = Math.sin(r),
       rx, ry;
 
-      inverse = (inverse) ? -1 : 1;
-
-      rx = cos * x - (inverse * sin) * y;
-      ry = (inverse * sin) * x + cos * y;
+      rx = cos * x - sin * y;
+      ry =  sin * x + cos * y;
 
       if (returnNew) {
         return new (this.constructor)(rx, ry);
@@ -208,6 +208,12 @@
 
     // Calculate the length of this vector
     length : function() {
+      var x = this.x, y = this.y;
+      return Math.sqrt(x * x + y * y);
+    },
+
+    // Calculate the length of this vector
+    magnitude : function() {
       var x = this.x, y = this.y;
       return Math.sqrt(x * x + y * y);
     },
@@ -226,6 +232,13 @@
       return Math.sqrt(x*x + y*y);
     },
 
+    scale: function(scalar, returnNew) {
+        if(!returnNew)
+            return this.set(this.x * scalar, this.y * scalar);
+        else
+            return new (this.constructor)(this.x * scalar, this.y * scalar);
+    },
+
     // Given Array of Vec2, find closest to this Vec2.
     nearest : function(others) {
       var
@@ -233,7 +246,7 @@
       nearest = null,
       currentDistance;
 
-      for (var i = others.length - 1; i >= 0; i--) {
+      for (var i =others.length - 1; i >= 0; i--) {
         currentDistance = this.distance(others[i]);
         if (currentDistance <= shortestDistance) {
           shortestDistance = currentDistance;
@@ -242,6 +255,14 @@
       }
 
       return nearest;
+    },
+    
+    // returns true if this vector is within a given distance of the other vector
+    within : function (dist, other) {
+      let dx = this.x - other.x;
+      let dy = this.y - other.y;
+      
+      return dx * dx + dy * dy <= dist * dist;
     },
 
     // Convert this vector into a unit vector.
@@ -263,8 +284,9 @@
 
     // Determine if another `Vec2`'s components match this one's
     // also accepts 2 scalars
-    equal : function(v, w) {
+    equal : function(v, w, tolerance) {
       if (typeof v != 'number') {
+        tolerance = w;
         if (isArray(v)) {
           w = v[1];
           v = v[0];
@@ -274,7 +296,9 @@
         }
       }
 
-      return (Vec2.clean(v) === this.x && Vec2.clean(w) === this.y);
+      tolerance = defined(tolerance) ? tolerance : 1e-10;
+
+      return Math.abs(this.x - v) < tolerance && Math.abs(this.y - w) < tolerance;
     },
 
     // Return a new `Vec2` that contains the absolute value of
@@ -358,7 +382,7 @@
     // Get the skew vector such that dot(skew_vec, other) == cross(vec, other)
     skew : function(returnNew) {
       if (!returnNew) {
-        return this.set(-this.y, this.x)
+        return this.set(-this.y, this.x);
       } else {
         return new (this.constructor)(-this.y, this.x);
       }
@@ -381,6 +405,26 @@
       return Math.atan2(this.perpDot(vec), this.dot(vec));
     },
 
+    transformPoint(t, returnNew) {
+      const x = this.x * t.a + this.y * t.c + t.e;
+      const y = this.x * t.b +  this.y * t.d + t.f;
+      if(returnNew)
+        return new Vec2(x,y);
+      
+      this.set(x, y);
+      return this;
+    },
+
+    transformVector(t, returnNew) {
+      const x = this.x * t.a + this.y * t.c;
+      const y = this.x * t.b +  this.y * t.d;
+      if(returnNew)
+        return new Vec2(x,y);
+    
+      this.set(x, y);
+      return this;
+    },
+
     // Divide this vector's components by a scalar
     divide : function(x, y, returnNew) {
       if (typeof x != 'number') {
@@ -398,7 +442,7 @@
       }
 
       if (x === 0 || y === 0) {
-        throw new Error('division by zero')
+        throw new Error('division by zero');
       }
 
       if (isNaN(x) || isNaN(y)) {
@@ -424,17 +468,33 @@
     fromArray: function(array) {
       return this.set(array[0], array[1]);
     },
-    toJSON: function () {
-      return {x: this.x, y: this.y};
+  
+    jsonify : function(decimals) {
+        if(!defined(decimals))	
+            decimals = 3;
+        var d = Math.pow(10, decimals);
+        var round = function(x) {return Math.round(d * x) / d;};
+        return [ round(this.x), round(this.y) ];
     },
+
+    toJSON: function() {
+      return this.jsonify();
+    },
+
     toString: function() {
-      return '(' + this.x + ', ' + this.y + ')';
+      return '(' + this.x.toFixed(3) + ', ' + this.y.toFixed(3) + ')';
     },
+
     constructor : Vec2
   };
 
+
   Vec2.fromArray = function(array, ctor) {
     return new (ctor || Vec2)(array[0], array[1]);
+  };
+
+  Vec2.fromAngle = function(r, ctor) {
+      return new (ctor || Vec2)(Math.cos(r), Math.sin(r));
   };
 
   // Floating point stability
@@ -450,12 +510,11 @@
       throw new Error('Infinity detected');
     }
 
-    if(Math.round(val) === val) {
-      return val;
-    }
-
-    return Math.round(val * p)/p;
+    return val;
   };
+
+  Vec2.magnitude = Vec2.length;
+  Vec2.jsonify = Vec2.toJSON;
 
   Vec2.inject = inject;
 
@@ -471,3 +530,4 @@
   }
   return Vec2;
 })();
+ 

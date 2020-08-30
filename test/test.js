@@ -180,14 +180,6 @@ describe('Vec2', function() {
       ok(called === false);
     });
 
-    it('should clean values', function() {
-      var v1 = Vec2(0.1, 0.1);
-      var v2 = Vec2(0.2, 0.2);
-      var result = v1.add(v2, true);
-      ok(result.x === 0.3);
-      ok(result.y === 0.3);
-    });
-
     it('should accept a Vec2', function () {
       var v1 = Vec2();
       var v2 = Vec2(Math.random(), Math.random());
@@ -466,22 +458,14 @@ describe('Vec2', function() {
         ok(Number(rotated.y).toFixed(4) === '16.5675');
       });
 
-      it('accepts a scalar angle in radians (inverse)', function() {
-        var v = new Vec2(10, 20);
-
-        var rotated = v.rotate(1.2, true, true);
-        ok(Number(rotated.x).toFixed(4) === '22.2644');
-        ok(Number(rotated.y).toFixed(4) === '-2.0732');
-      });
-
       it('returns a new vector if returnNew is truthy', function() {
         var v = new Vec2(10, 20);
-        ok(v.rotate(1.0, false, true) !== v);
+        ok(v.rotate(1.0, true) !== v);
       });
 
       it('returns itself when returnNew is falsy', function() {
         var v = new Vec2(10, 20);
-        ok(v.rotate(1.0, true) === v);
+        ok(v.rotate(1.0) === v);
       });
     });
 
@@ -522,16 +506,15 @@ describe('Vec2', function() {
       it('properly normalizes a vector', function() {
         var v = new Vec2(2, 5);
         var v2 = v.normalize();
-        ok(v2.x === 0.37139068);
-        ok(v2.y === 0.92847669);
+        ok(v2.equal([0.37139068, 0.92847669], 1e-2))
         ok(v === v2);
+
       });
 
       it('should return a new vector when returnNew is truthy', function() {
         var v = new Vec2(2, 5);
         var v2 = v.normalize(true);
-        ok(v2.x === 0.37139068);
-        ok(v2.y === 0.92847669);
+        ok(v2.equal([0.37139068, 0.92847669], 1e-8))
         ok(v !== v2);
       });
 
@@ -914,10 +897,6 @@ describe('Vec2', function() {
   });
 
   describe('#clean', function() {
-    it('should clean the well known .1 + .2 case', function() {
-      ok(Vec2.clean(0.1 + 0.2) === 0.3);
-    });
-
     it('should throw when passed NaN', function() {
       var caught;
       throws(function() {
@@ -935,15 +914,16 @@ describe('Vec2', function() {
 
   describe('#toJSON', function () {
     it('should stringify nicely', function () {
-      var v = new Vec2(3.5421, 0.234);
-      ok(JSON.stringify(v) === '{"x":3.5421,"y":0.234}');
+      var v = new Vec2(3.542134, 0.234);
+      console.log(JSON.stringify(v) )
+      ok(JSON.stringify(v) === '[3.542,0.234]');
     });
   });
 
   describe('#toString', function() {
     it('should provide an easy to read representation', function() {
       var v = new Vec2(10, 100);
-      ok((v + '') === '(10, 100)');
+      ok((v + '') === '(10.000, 100.000)');
     });
   });
 
